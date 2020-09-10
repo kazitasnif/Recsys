@@ -14,7 +14,7 @@ dataset = lastfm
 home = os.path.expanduser('~')
 
 # Here you can change the path to the dataset
-DATASET_DIR = home + '/Documents/Master/Pytorch testing/datasets/'+dataset
+DATASET_DIR = home + '/Downloads/lastfm-dataset-1k/'
 
 if dataset == lastfm:
     DATASET_FILE = DATASET_DIR + '/lastfm.tsv'
@@ -98,6 +98,7 @@ def convert_timestamps_lastfm():
            user_id     = line[0]
            timestamp   = (dateutil.parser.parse(line[1])).timestamp()
            artist_id   = line[2]
+           #print(timestamp)
 
            if user_id != last_user_id or last_user_id == "":
                count += 1

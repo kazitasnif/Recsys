@@ -14,6 +14,7 @@ class RNNDataHandler:
         # LOAD DATASET
         self.dataset_path = dataset_path
         self.batch_size = batch_size
+        #print(self.batch_size)
         #print("Loading dataset")
         load_time = time.time()
         dataset = pickle.load(open(self.dataset_path, 'rb'))
@@ -31,7 +32,9 @@ class RNNDataHandler:
 
         # II_RNN stuff
         self.MAX_SESSION_REPRESENTATIONS = max_sess_reps
+        #print(self.MAX_SESSION_REPRESENTATIONS)
         self.LT_INTERNALSIZE = lt_internalsize
+        #print(self.LT_INTERNALSIZE)
     
         # batch control
         self.gap_strat = gap_strat
@@ -65,6 +68,7 @@ class RNNDataHandler:
                 #add gaps within trainset
                 for session_index in range(1,len(self.trainset[k])):
                     gap = self.real_gap(self.trainset[k][session_index][0][0],self.trainset[k][session_index-1][self.train_session_lengths[k][session_index-1]][0])
+                    #print(gap)
                     times.append(gap)
                 self.user_train_times[k] = times
                 
@@ -119,13 +123,25 @@ class RNNDataHandler:
         # session representations for each user is stored here
         self.user_session_representations = [None]*self.num_users
         self.user_gaptime_representations = [None]*self.num_users
+        self.session_durations = [None]* self.num_users
         # the number of (real) session representations a user has
         self.num_user_session_representations = [0]*self.num_users
         for k, v in self.trainset.items():
             self.user_session_representations[k] = collections.deque(maxlen=self.MAX_SESSION_REPRESENTATIONS)
+            #print(self.user_session_representations[k])
             self.user_session_representations[k].append([0]*self.LT_INTERNALSIZE)
+            
+
+            #print(self.user_session_representations[k])
             self.user_gaptime_representations[k] = collections.deque(maxlen=self.MAX_SESSION_REPRESENTATIONS)
             self.user_gaptime_representations[k].append(0)
+
+            self.session_durations[k] = collections.deque(maxlen=self.MAX_SESSION_REPRESENTATIONS)
+            self.session_durations[k].append(0)
+
+
+
+
 
     def get_N_highest_indexes(a,N):
         return np.argsort(a)[::-1][:N]
@@ -174,6 +190,7 @@ class RNNDataHandler:
         session_lengths = []
         sess_rep_batch = []
         sess_gaptime_batch = []
+        sess_duration_batch = []
         sess_rep_lengths = []
         target_times = []
         
@@ -185,8 +202,9 @@ class RNNDataHandler:
         
         # index of users to get
         user_list = RNNDataHandler.get_N_highest_indexes(remaining_sessions, self.batch_size)
+        #print(user_list)
         if(len(user_list) == 0):
-            return [],[],[],[],[],[],[],[],[]
+            return [],[],[],[],[],[],[],[],[], []
         for i in range(len(user_list)):
             user_list[i] = self.users_with_remaining_sessions[user_list[i]]
 
@@ -195,33 +213,48 @@ class RNNDataHandler:
         for user in user_list:
             session_index = self.user_next_session_to_retrieve[user]
             session_batch.append(dataset[user][session_index])
+          
             session_lengths.append(dataset_session_lengths[user][session_index])
             srl = max(self.num_user_session_representations[user],1)
+            #print(srl)
             sess_rep_lengths.append(srl)
             sess_rep = list(self.user_session_representations[user]) #copy
+
+            #print(len(sess_rep[]))
+            #print(sess_rep[0])
             sess_gaptime = list(self.user_gaptime_representations[user])
+            sess_duration = list(self.session_durations[user])
+            #print(sess_duration)
+            #print(sess_gaptime)
 
             #pad session representations and corresponding contexts if not full
             if(srl < self.MAX_SESSION_REPRESENTATIONS):
                 for i in range(self.MAX_SESSION_REPRESENTATIONS-srl):
                     sess_rep.append([0]*self.LT_INTERNALSIZE) #pad with zeroes after valid reps
                     sess_gaptime.append(0) #pad with zeros after valid time-gaps
+                    sess_duration.append(0)
+            #print(len(sess_rep[0]))
             sess_rep_batch.append(sess_rep)
+
             sess_gaptime_batch.append(sess_gaptime)
+            sess_duration_batch.append(sess_duration)
 
             self.user_next_session_to_retrieve[user] += 1
             if self.user_next_session_to_retrieve[user] >= len(dataset[user]):
                 # User have no more session, remove him from users_with_remaining_sessions
                 self.users_with_remaining_sessions.remove(user)
             target_times.append(time_set[user][session_index]) 
+            #print(target_times[0])
 
         #sort batch based on seq rep len
+        
         session_batch = [[event[1] for event in session] for session in session_batch]
+        #print(len(session_batch[0]))
         x = [session[:-1] for session in session_batch]
         y = [session[1:] for session in session_batch]
         first_predictions = [session[0] for session in session_batch]
-
-        return x, y, session_lengths, sess_rep_batch, sess_rep_lengths, user_list, sess_gaptime_batch, target_times, first_predictions
+        #print(len(sess_gaptime_batch[0]))
+        return x, y, session_lengths, sess_rep_batch, sess_rep_lengths, user_list, sess_gaptime_batch, target_times, first_predictions, sess_duration_batch
 
     def get_next_train_batch(self):
         return self.get_next_batch(self.trainset, self.train_session_lengths, self.user_train_times)
@@ -235,13 +268,18 @@ class RNNDataHandler:
             user = user_list[i]
             session_representation = list(sessions_representations[i])
             target_time = float(target_times[i])
+            original_target_time = target_time
             if(target_time > self.min_time):
                 #if(target_time > self.max_time):
                 #    target_time = 0
+                #print(target_time)
                 target_time = min(target_time, self.max_time)/self.max_time
+                #print(target_time)
                 #target_time = np.log2(min(target_time,self.max_time)/self.max_time*(self.max_exp)+1)
                 target_time = target_time/self.scale
+                #print(target_time)
                 target_time = int(target_time//self.delta)
+                #print(target_time)
             else:
                 target_time = 0
 
@@ -252,7 +290,9 @@ class RNNDataHandler:
             if(num_reps == 0):
                 self.user_session_representations[user].pop() #pop dummy session representation
                 self.user_gaptime_representations[user].pop() #pop dummy gap-time
+                self.session_durations[user].pop()
             self.user_session_representations[user].append(session_representation)
             self.user_gaptime_representations[user].append(target_time)
+            self.session_durations[user].append(original_target_time)
             self.num_user_session_representations[user] = min(self.MAX_SESSION_REPRESENTATIONS, num_reps+1)
 

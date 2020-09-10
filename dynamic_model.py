@@ -34,11 +34,12 @@ flags["context"] = True
 flags["temporal"] = True
 SEED = 2
 GPU = 0
+cuda = False
 gap_strat = ""
 add = "_" if gap_strat != "" else ""
-directory = "/data/stud/bjorva/logs/dim/" + gap_strat + add
-debug = False
-
+directory = "." + gap_strat + add
+debug = True
+device = torch.device('cuda:' + str(GPU) if cuda and torch.cuda.is_available() else 'cpu')
 torch.manual_seed(SEED)
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   
 os.environ["CUDA_VISIBLE_DEVICES"]=str(GPU)
@@ -66,8 +67,10 @@ params["GAMMA"] = 0.1
 params["EPSILON"] = 1.0
 flags["use_day"] = True
 
+home = os.path.expanduser('~')
 #data path and log/model-name
-dataset_path = "/data/stud/bjorva/datasets/" + dataset + "/4_train_test_split.pickle"
+DATASET_DIR = home + '/Downloads/lastfm-dataset-1k/'
+dataset_path = DATASET_DIR + "/4_train_test_split.pickle"
 if(flags["temporal"]):
     model = "temporal"
 elif(flags["context"]):
@@ -106,9 +109,12 @@ elif dataset == instacart:
     min_time = 0.5
     flags["freeze"] = False
 #additional parameter
-time_threshold = torch.cuda.FloatTensor([min_time])
+time_threshold = torch.tensor([min_time], device=device, dtype=float)
 if(flags["use_day"]):
+    #print(time_threshold)
     time_threshold /= 24
+    #print(time_threshold)
+
 
 #dimensionalities
 dims["INTRA_HIDDEN"] = dims["EMBEDDING_DIM"]
@@ -154,7 +160,7 @@ while epoch_nr < MAX_EPOCHS:
     #reset state of datahandler and get first training batch
     datahandler.reset_user_batch_data_train()
     datahandler.reset_user_session_representations()
-    items, item_targets, session_lengths, session_reps, session_rep_lengths, user_list, sess_time_reps, time_targets, first_rec_targets = datahandler.get_next_train_batch()
+    items, item_targets, session_lengths, session_reps, session_rep_lengths, user_list, sess_time_reps, time_targets, first_rec_targets, session_durations = datahandler.get_next_train_batch()
     batch_nr = 0
 
     #set model to train-mode, effectivly turning on all dropouts
@@ -166,14 +172,15 @@ while epoch_nr < MAX_EPOCHS:
         batch_start_time = time.time()
 
         #training call
-        batch_loss = model.train_on_batch(items, session_reps, sess_time_reps, user_list, item_targets, time_targets, first_rec_targets, session_lengths, session_rep_lengths)
+        batch_loss = model.train_on_batch(items, session_reps, sess_time_reps, user_list, item_targets, time_targets, first_rec_targets, session_lengths, session_rep_lengths, session_durations)
+        print(batch_loss)
         epoch_loss += batch_loss
 
         #total time spent on mini-batch
         batch_runtime = time.time() - batch_start_time
 
         #get next training batch
-        items, item_targets, session_lengths, session_reps, session_rep_lengths, user_list, sess_time_reps, time_targets, first_rec_targets = datahandler.get_next_train_batch()
+        items, item_targets, session_lengths, session_reps, session_rep_lengths, user_list, sess_time_reps, time_targets, first_rec_targets, session_durations = datahandler.get_next_train_batch()
 
         #print batch loss and ETA occationally
         if batch_nr%1500 == 0:
@@ -203,7 +210,7 @@ while epoch_nr < MAX_EPOCHS:
             txt_file.write("Starting testing"+"\n")
         #reset state of datahandler and get first test batch
         datahandler.reset_user_batch_data_test()
-        items, item_targets, session_lengths, session_reps, session_rep_lengths, user_list, sess_time_reps, time_targets, first_rec_targets = datahandler.get_next_test_batch()
+        items, item_targets, session_lengths, session_reps, session_rep_lengths, user_list, sess_time_reps, time_targets, first_rec_targets, session_durations = datahandler.get_next_test_batch()
 
         #set flag in order to only perform the expensive time prediction if necessary
         if( flags["temporal"] and epoch_nr == MAX_EPOCHS-1):
@@ -229,7 +236,7 @@ while epoch_nr < MAX_EPOCHS:
                 tester.evaluate_batch_rec(k_predictions, item_targets, session_lengths)
 
             #get next test batch
-            items, item_targets, session_lengths, session_reps, session_rep_lengths, user_list, sess_time_reps, time_targets, first_rec_targets = datahandler.get_next_test_batch()
+            items, item_targets, session_lengths, session_reps, session_rep_lengths, user_list, sess_time_reps, time_targets, first_rec_targets, session_durations = datahandler.get_next_test_batch()
             batch_runtime = time.time() - batch_start_time
 
             #print progress and ETA occationally

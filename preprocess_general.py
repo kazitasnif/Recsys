@@ -9,7 +9,7 @@ reddit = "subreddit"
 lastfm = "lastfm"
 
 # Uncomment the dataset you want to use here
-dataset = reddit
+dataset = lastfm
 
 home = os.path.expanduser('~')
 
@@ -23,7 +23,7 @@ else:
     split_mode = "user"
 
 # Here you can change the path to the dataset
-DATASET_DIR = home + '/Documents/Master/Pytorch testing/datasets/'+dataset
+DATASET_DIR = home + '/Downloads/lastfm-dataset-1k/'
 
 if dataset == lastfm:
     DATASET_FILE = DATASET_DIR + '/lastfm.tsv'
@@ -80,7 +80,9 @@ def convert_timestamps_lastfm():
         for line in dataset:
             line = line.split('\t')
             user_id     = line[0]
+            #print(dateutil.parser.parse(line[1]))
             timestamp   = (dateutil.parser.parse(line[1])).timestamp()
+            #print(timestamp)
             artist_id   = line[2]
             dataset_list.append( [user_id, timestamp, artist_id] )
 
