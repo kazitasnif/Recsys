@@ -254,6 +254,7 @@ class RNNDataHandler:
         y = [session[1:] for session in session_batch]
         first_predictions = [session[0] for session in session_batch]
         #print(len(sess_gaptime_batch[0]))
+        #print(len(target_times))
         return x, y, session_lengths, sess_rep_batch, sess_rep_lengths, user_list, sess_gaptime_batch, target_times, first_predictions, sess_duration_batch
 
     def get_next_train_batch(self):

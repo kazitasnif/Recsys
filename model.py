@@ -10,7 +10,7 @@ from utility import *
 
 class RecommenderModel:
 
-    def __init__(self, dims, params, flags, datahandler, tester, time_threshold, device='cpu', ctlstm=False):
+    def __init__(self, dims, params, flags, datahandler, tester, time_threshold, device='cpu', ctlstm=True):
         self.dims = dims
         self.params = params
         self.flags = flags
@@ -188,7 +188,8 @@ class RecommenderModel:
                     self.params["ALPHA"] = 0.0
                     self.params["GAMMA"] = 1.0
         return
-
+    def predict_from_intensity(self):
+        pass
     def train_mode(self):
         self.intra_rnn.train()
         self.inter_rnn.train()
@@ -280,7 +281,11 @@ class RecommenderModel:
 
 
 
+        if(self.ctlstm):
 
+           # self.intensity_loss.intensityUpperBound(inter_last_states)
+            time_predictions = self.intensity_loss.sample(inter_last_states)
+            print(len(time_predictions))
         #get time scores and first prediction scores from the last hidden state of the inter RNN
         if(self.flags["temporal"]):
             if(not self.ctlstm):
@@ -371,9 +376,9 @@ class RecommenderModel:
             self.inter_intra_optimizer.step()
         return mean_loss.data[0]
 
-    def predict_on_batch(self, items, session_reps, sess_time_reps, user_list, item_targets, time_targets, first_rec_targets, session_lengths, session_rep_lengths, time_error):
+    def predict_on_batch(self, items, session_reps, sess_time_reps, user_list, item_targets, time_targets, first_rec_targets, session_lengths, session_rep_lengths, time_error, session_durations):
         #get batch from datahandler and turn into s
-        X, S, S_gaps, U = self.process_batch_inputs(items, session_reps, sess_time_reps, user_list)
+        X, S, S_gaps, U, S_durations = self.process_batch_inputs(items, session_reps, sess_time_reps, user_list, session_durations)
 
         #get embedded times
         if(self.flags["context"]):
@@ -391,13 +396,28 @@ class RecommenderModel:
         #get initial hidden state of inter gru layer and call forward on the module
         inter_hidden = self.inter_rnn.init_hidden(S.size(0))
         if(self.flags["context"]):
-            inter_last_hidden = self.inter_rnn(torch.cat((S, embedded_S_gaps, embedded_U),2), inter_hidden, rep_indicies)
+            #inter_last_hidden = self.inter_rnn(torch.cat((S, embedded_S_gaps, embedded_U),2), inter_hidden, rep_indicies)
+
+            if(not self.ctlstm):
+                inter_last_hidden = self.inter_rnn(torch.cat((S, embedded_S_gaps, embedded_U),2), inter_hidden, rep_indicies, S_durations)
+                #print(inter_last_hidden.shape)
+            else:
+                inter_last_states = self.inter_rnn(torch.cat((S, embedded_S_gaps, embedded_U),2), inter_hidden, rep_indicies, S_durations)
+                inter_last_hidden = get_ctlstm_hidden(inter_last_states, torch.zeros(len(time_targets), device=self.device))[0]
         else:
-            inter_last_hidden = self.inter_rnn(S, inter_hidden, rep_indicies)
+            if(not self.ctlstm):
+                inter_last_hidden = self.inter_rnn(S, inter_hidden, rep_indicies, S_durations)
+            else:
+                inter_last_states = self.inter_rnn(S, inter_hidden, rep_indicies, S_durations)
+                inter_last_hidden = get_ctlstm_hidden(inter_last_states, torch.zeros(len(time_targets), device = self.device))[0]
+
 
         #get time scores and first prediction scores from the last hidden state of the inter RNN
         if(self.flags["temporal"]):
-            times = self.time_linear(inter_last_hidden).squeeze()
+
+
+            if(not self.ctlstm):
+                times = self.time_linear(inter_last_hidden).squeeze()
             first_predictions = self.first_linear(inter_last_hidden).squeeze()
 
             #calculate time error if this is desired
