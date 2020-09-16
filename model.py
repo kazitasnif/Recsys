@@ -28,28 +28,28 @@ class RecommenderModel:
 
         #setting up embedding matrices
         self.item_embed = Embed(self.dims["N_ITEMS"], self.dims["EMBEDDING_DIM"], item=True)
-        if(self.device.startswith("cuda")):
+        if(self.device.type=="cuda"):
             self.item_embed = self.item_embed.cuda()
         inter_intra_params += list(self.item_embed.parameters())
 
         if(self.flags["context"]):
             self.time_embed = Embed(self.dims["TIME_RESOLUTION"], self.dims["TIME_HIDDEN"], item=False)
-            if(self.device.startswith("cuda")):
+            if(self.device.type=="cuda"):
                 self.time_embed = self.time_embed.cuda()
             inter_intra_params += list(self.time_embed.parameters())
             self.user_embed = Embed(self.dims["N_USERS"], self.dims["USER_HIDDEN"], item=False)
-            if(self.device.startswith("cuda")):
+            if(self.device.type=="cuda"):
                 self.user_embed = self.user_embed.cuda()
             inter_intra_params += list(self.user_embed.parameters())
 
         #setting up models with optimizers
         self.inter_rnn = Inter_RNN(self.dims["INTER_INPUT_DIM"], self.dims["INTER_HIDDEN"], self.params["dropout"], device=self.device, ctlstm=self.ctlstm)
-        if(self.device.startswith("cuda")):
+        if(self.device.type=="cuda"):
             self.inter_rnn = self.inter_rnn.cuda()
         inter_intra_params += list(self.inter_rnn.parameters())
 
         self.intra_rnn = Intra_RNN(self.dims["EMBEDDING_DIM"], self.dims["INTRA_HIDDEN"], self.dims["N_ITEMS"], self.params["dropout"])
-        if(self.device.startswith("cuda")):
+        if(self.device.type=="cuda"):
             self.intra_rnn = self.intra_rnn.cuda()
         inter_intra_params += list(self.intra_rnn.parameters())
 
@@ -57,12 +57,12 @@ class RecommenderModel:
         if(self.flags["temporal"]):
             if(not self.ctlstm):
                 self.time_linear = nn.Linear(self.dims["INTER_HIDDEN"],1)
-                if(self.device.startswith("cuda")):
+                if(self.device.type=="cuda"):
                     self.time_linear = self.time_linear.cuda()
                 time_params += [{"params": self.time_linear.parameters(), "lr":0.1*self.params["lr"]}]
 
             self.first_linear = nn.Linear(self.dims["INTER_HIDDEN"],self.dims["N_ITEMS"])
-            if(self.device.startswith("cuda")):
+            if(self.device.type=="cuda"):
                 self.first_linear = self.first_linear.cuda()
         """
         self.intra_linear = nn.Linear(self.dims["INTER_HIDDEN"],self.dims["INTRA_HIDDEN"])
@@ -77,9 +77,10 @@ class RecommenderModel:
                 self.intensity_loss = IntensityLoss(self.dims["INTER_HIDDEN"])
             else:
                 self.intensity_loss = None
-            if(self.device.startswith("cuda")):
+            if(self.device.type=="cuda"):
                 self.time_loss_func = self.time_loss_func.cuda()
-                self.intensity_loss = self.intensity_loss.cuda()
+                if(self.intensity_loss):
+                    self.intensity_loss = self.intensity_loss.cuda()
             time_params += [{"params": self.time_loss_func.parameters() if not self.ctlstm else self.intensity_loss.parameters(), "lr": 0.1*self.params["lr"]}]
 
         #setting up optimizers

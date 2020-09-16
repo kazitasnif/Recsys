@@ -26,7 +26,7 @@ lastfm_simple = "lastfm_sim"
 lastfm3 = "lastfm3"
 instacart = "instacart"
 nowplaying = "nowplaying"
-
+ctlstm = False
 #runtime settings
 flags = {}
 dataset = lastfm
@@ -34,7 +34,7 @@ flags["context"] = True
 flags["temporal"] = True
 SEED = 2
 GPU = 0
-cuda = False
+cuda = True
 gap_strat = ""
 add = "_" if gap_strat != "" else ""
 directory = "." + gap_strat + add
@@ -67,9 +67,11 @@ params["GAMMA"] = 0.1
 params["EPSILON"] = 1.0
 flags["use_day"] = True
 
-home = os.path.expanduser('~')
+#home = os.path.expanduser('~')
 #data path and log/model-name
-DATASET_DIR = home + '/Downloads/lastfm-dataset-1k/'
+#print(home)
+home = '/kislam'
+DATASET_DIR = home + '/Recsys/lastfm'
 dataset_path = DATASET_DIR + "/4_train_test_split.pickle"
 if(flags["temporal"]):
     model = "temporal"
@@ -135,7 +137,7 @@ dims["N_USERS"] = datahandler.get_num_users()
 tester = Tester(seqlen = SEQLEN, use_day = flags["use_day"], min_time = min_time, model_info = log_name, temporal = flags["temporal"])
 
 #initialize model
-model = RecommenderModel(dims, params, flags, datahandler, tester, time_threshold)
+model = RecommenderModel(dims, params, flags, datahandler, tester, time_threshold, device=device, ctlstm=ctlstm)
 
 #setting up for training
 epoch_nr = 0
