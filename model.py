@@ -10,7 +10,7 @@ from utility import *
 
 class RecommenderModel:
 
-    def __init__(self, dims, params, flags, datahandler, tester, time_threshold, device='cpu', ctlstm=True):
+    def __init__(self, dims, params, flags, datahandler, tester, time_threshold, device='cpu', ctlstm=False):
         self.dims = dims
         self.params = params
         self.flags = flags
@@ -281,11 +281,11 @@ class RecommenderModel:
 
 
 
-        if(self.ctlstm):
+        #if(self.ctlstm):
 
            # self.intensity_loss.intensityUpperBound(inter_last_states)
-            time_predictions = self.intensity_loss.sample(inter_last_states)
-            print(len(time_predictions))
+        #    time_predictions = self.intensity_loss.sample(inter_last_states)
+        #    print(len(time_predictions))
         #get time scores and first prediction scores from the last hidden state of the inter RNN
         if(self.flags["temporal"]):
             if(not self.ctlstm):
@@ -422,8 +422,13 @@ class RecommenderModel:
 
             #calculate time error if this is desired
             if(time_error):
-                w = self.time_loss_func.get_w()
-                time_predictions = self.time_prediction(times.data, w.data)
+                if(self.ctlstm):
+                    time_predictions = self.intensity_loss.sample(inter_last_states)
+                else:
+                    w = self.time_loss_func.get_w()
+                    time_predictions = self.time_prediction(times.data, w.data)
+
+
                 self.tester.evaluate_batch_time(time_predictions, time_targets)
 
         #get item embeddings

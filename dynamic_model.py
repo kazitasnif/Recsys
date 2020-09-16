@@ -203,7 +203,8 @@ while epoch_nr < MAX_EPOCHS:
 #********************************************************************************TESTING******************************************************************************************
     
     #test the model in some epochs, no need for testing in every epoch for most experiments
-    if(epoch_nr == MAX_EPOCHS-1):
+    #if(epoch_nr == MAX_EPOCHS-1):
+    if(epoch_nr >= 0):
         if(debug):
             print("Starting testing")
         with open(txt_file_name,'a') as txt_file:
@@ -213,7 +214,7 @@ while epoch_nr < MAX_EPOCHS:
         items, item_targets, session_lengths, session_reps, session_rep_lengths, user_list, sess_time_reps, time_targets, first_rec_targets, session_durations = datahandler.get_next_test_batch()
 
         #set flag in order to only perform the expensive time prediction if necessary
-        if( flags["temporal"] and epoch_nr == MAX_EPOCHS-1):
+        if( flags["temporal"] and epoch_nr == MAX_EPOCHS):
             time_error = True
         else:
             time_error = False
