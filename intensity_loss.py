@@ -47,7 +47,7 @@ class IntensityLoss(nn.Module):
 
 
     def sample(self, states):
-
+        #print('sampling')
         upper_bound = self.intensityUpperBound(states)
         #print(upper_bound.shape)
         predicted_times = []

@@ -176,18 +176,19 @@ class Tester:
                 cumulative_count += self.time_count[i]
                 cumulative_percent += self.time_percent_error[i]
                 cumulative_error += self.time_error[i]
-            time_message += str(round(error, self.n_decimals))+'\t'
-            time_message += str(round(percent, self.n_decimals))+'\t'
+            
+            time_message += str(round(error.item() if not isinstance(error, float) else error, self.n_decimals))+'\t'
+            time_message += str(round(percent, self.n_decimals) if isinstance(percent, float) else round(percent.item(), self.n_decimals))+'\t'
 
         #add cummulative scores
         cumulative_count = max(cumulative_count,1)
         time_output = cumulative_error/cumulative_count
-        time_message += "\ntotal-last\t" + str(round(cumulative_error/cumulative_count, self.n_decimals))+'\t' + str(round(cumulative_percent/cumulative_count, self.n_decimals))+'\t'
+        time_message += "\ntotal-last\t" + str(round(cumulative_error/cumulative_count if isinstance(cumulative_error/cumulative_count, float) else (cumulative_error/cumulative_count).item(), self.n_decimals))+'\t' + str(round(cumulative_percent/cumulative_count if isinstance(cumulative_percent/cumulative_count, float) else (cumulative_percent/cumulative_count).item(), self.n_decimals))+'\t'
         last = len(self.time_buckets)-1
         cumulative_count += self.time_count[last]
         cumulative_error += self.time_error[last]
         cumulative_percent += self.time_percent_error[last]
-        time_message += "\ntotal\t" + str(round(cumulative_error/cumulative_count, self.n_decimals))+'\t' + str(round(cumulative_percent/cumulative_count, self.n_decimals))+'\t'
+        time_message += "\ntotal\t" + str(round(cumulative_error/cumulative_count if isinstance(cumulative_error/cumulative_count, float) else (cumulative_error/cumulative_count).item(),self.n_decimals))+'\t' + str(round(cumulative_percent/cumulative_count if isinstance(cumulative_percent/cumulative_count, float) else (cumulative_percent/cumulative_count).item(), self.n_decimals))+'\t'
         
         return time_message
 
