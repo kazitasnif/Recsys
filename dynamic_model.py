@@ -26,7 +26,7 @@ lastfm_simple = "lastfm_sim"
 lastfm3 = "lastfm3"
 instacart = "instacart"
 nowplaying = "nowplaying"
-ctlstm = True
+ctlstm = False
 #runtime settings
 flags = {}
 dataset = lastfm
@@ -175,6 +175,7 @@ while epoch_nr < MAX_EPOCHS:
 
         #training call
         batch_loss = model.train_on_batch(items, session_reps, sess_time_reps, user_list, item_targets, time_targets, first_rec_targets, session_lengths, session_rep_lengths, session_durations)
+        print(batch_nr)
         print(batch_loss)
         epoch_loss += batch_loss
 
@@ -196,77 +197,6 @@ while epoch_nr < MAX_EPOCHS:
                 txt_file.write(" | ETA:" + str(eta) + "minutes."+"\n")
 
         batch_nr += 1
-        if(epoch_nr >= 0):
-            if(debug):
-                print("Starting testing")
-            with open(txt_file_name,'a') as txt_file:
-                txt_file.write("Starting testing"+"\n")
-            #reset state of datahandler and get first test batch
-            datahandler.reset_user_batch_data_test()
-            items, item_targets, session_lengths, session_reps, session_rep_lengths, user_list, sess_time_reps, time_targets, first_rec_targets, session_durations = datahandler.get_next_test_batch()
-
-            #set flag in order to only perform the expensive time prediction if necessary
-            if( flags["temporal"] and epoch_nr >= 0):
-                time_error = True
-            else:
-                time_error = False
-
-            #set model in evaluation mode, effectivly turing off dropouts and scaling affected weights accordingly
-            model.eval_mode()
-
-            batch_nr = 0
-            while(len(items) > int(BATCHSIZE/2)):
-                #batch testing
-                batch_start_time = time.time()
-
-                #run predictions on test batch
-                k_predictions = model.predict_on_batch(items, session_reps, sess_time_reps, user_list, item_targets, time_targets, first_rec_targets, session_lengths, session_rep_lengths, time_error, session_durations)
-
-                #evaluate results
-                if(flags["temporal"]):
-                    tester.evaluate_batch_temporal(k_predictions[:,1:], item_targets, session_lengths, k_predictions[:,0], first_rec_targets)
-                else:
-                    tester.evaluate_batch_rec(k_predictions, item_targets, session_lengths)
-
-                #get next test batch
-                items, item_targets, session_lengths, session_reps, session_rep_lengths, user_list, sess_time_reps, time_targets, first_rec_targets, session_durations = datahandler.get_next_test_batch()
-                batch_runtime = time.time() - batch_start_time
-
-                #print progress and ETA occationally
-                if batch_nr%50 == 0:
-                    eta = (batch_runtime*(num_test_batches-batch_nr))/60
-                    eta = "%.2f" % eta
-                    if(debug):
-                        print("Batch: " + str(batch_nr) + "/" + str(num_test_batches))
-                        print(" | ETA:", eta, "minutes.")
-                    with open(txt_file_name,'a') as txt_file:
-                        txt_file.write("Batch: " + str(batch_nr) + "/" + str(num_test_batches)+"\n")
-                        txt_file.write(" | ETA:" + str(eta) + "minutes."+"\n")
-
-                batch_nr += 1
-                
-                # Print final test stats for epoch
-                test_stats, time_stats, individual_stats = tester.get_stats_and_reset(get_time = time_error, store = epoch_nr == MAX_EPOCHS-1)
-                if(debug):
-                    print(test_stats)
-                    print("\n")
-                    print(individual_stats)
-                with open(txt_file_name,'a') as txt_file:
-                    txt_file.write(test_stats+"\n\n")
-                    txt_file.write(individual_stats + "\n\n")
-
-                #only print time stats if available
-                if(time_error):
-                    if(debug):
-                        print("\n")
-                        print(time_stats)
-                    if not ctlstm:
-                        with open(txt_file_name,'a') as txt_file:
-                            txt_file.write(str(model.get_w().data))
-                            txt_file.write("\n")
-                            txt_file.write(time_stats + "\n\n")
-
-
     #print mean recommendation loss in epoch
     if(debug):
         print("Epoch loss: " + str(epoch_loss/batch_nr))
